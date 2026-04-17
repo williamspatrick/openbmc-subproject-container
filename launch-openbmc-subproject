@@ -1,0 +1,84 @@
+#!/bin/bash
+set -e
+
+# Script to build and run the openbmc-subproject-docker container
+# Uses podman with host networking and mounts current directory as /workspace
+
+# Get the directory where this script is located (for Dockerfile)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+IMAGE_NAME="openbmc-subproject-docker"
+
+# Function to display usage
+usage() {
+    echo "Usage: $0 [build|run|both] [command...]"
+    echo ""
+    echo "Commands:"
+    echo "  build       - Build the Docker image"
+    echo "  run         - Run container with specified command"
+    echo "  both        - Build and then run (default if no command specified)"
+    echo ""
+    echo "Examples:"
+    echo "  $0 build"
+    echo "  $0 run bash"
+    echo "  $0 run meson compile"
+    echo "  $0 both meson test"
+    echo "  $0  # same as 'both' with interactive bash"
+    exit 1
+}
+
+# Function to build the image
+build_image() {
+    echo "=== Building Docker image: $IMAGE_NAME ==="
+    echo "Dockerfile location: $SCRIPT_DIR"
+    podman build -t "$IMAGE_NAME" "$SCRIPT_DIR"
+    echo "=== Build complete ==="
+}
+
+# Function to run the container
+run_container() {
+    local cmd="$@"
+    
+    # If no command specified, use interactive bash
+    if [ -z "$cmd" ]; then
+        cmd="bash"
+    fi
+    
+    echo "=== Running container with host networking ==="
+    echo "Mount: $(pwd) -> /workspace"
+    echo "Command: $cmd"
+    echo ""
+    
+    podman run --rm -it \
+        --network host \
+        -v "$(pwd):/workspace:Z" \
+        -w /workspace \
+        "$IMAGE_NAME" \
+        $cmd
+}
+
+# Parse arguments
+ACTION="${1:-both}"
+shift || true
+
+case "$ACTION" in
+    build)
+        build_image
+        ;;
+    run)
+        run_container "$@"
+        ;;
+    both)
+        build_image
+        run_container "$@"
+        ;;
+    -h|--help|help)
+        usage
+        ;;
+    *)
+        # If first arg is not a recognized action, assume it's a command to run
+        # and treat as "both" action
+        build_image
+        run_container "$ACTION" "$@"
+        ;;
+esac
