@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-venv \
     ca-certificates \
+    pkg-config \
+    cmake \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Add LLVM repository for clang-21
@@ -29,6 +32,25 @@ RUN apt-get install -y \
     g++-15 \
     || apt-get install -y gcc g++ \
     && rm -rf /var/lib/apt/lists/*
+
+# Install libsystemd development files and other build dependencies
+RUN apt-get update && apt-get install -y \
+    libsystemd-dev \
+    libgtest-dev \
+    libgmock-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build and install Boost 1.89.0 from source with required libraries
+RUN cd /tmp && \
+    wget -O boost-1.89.0-cmake.tar.gz https://github.com/boostorg/boost/releases/download/boost-1.89.0/boost-1.89.0-cmake.tar.gz && \
+    tar xzf boost-1.89.0-cmake.tar.gz && \
+    cd boost-1.89.0 && \
+    ./bootstrap.sh --prefix=/usr/local --with-libraries=atomic,context,coroutine,filesystem,process,url && \
+    ./b2 -j$(nproc) && \
+    ./b2 install --prefix=/usr/local valgrind=on && \
+    cd / && \
+    rm -rf /tmp/boost-1.89.0-cmake.tar.gz /tmp/boost-1.89.0 && \
+    ldconfig
 
 # Set GCC 15 as default if available
 RUN (update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 150 && \
@@ -54,7 +76,8 @@ RUN (update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 210 &&
 RUN pip3 install --break-system-packages \
     inflection \
     mako \
-    pyyaml
+    pyyaml \
+    jsonschema
 
 # Install meson (will be at least 1.10.1 in Ubuntu plucky) and ninja
 RUN apt-get update && apt-get install -y ninja-build && rm -rf /var/lib/apt/lists/*
