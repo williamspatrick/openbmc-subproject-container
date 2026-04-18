@@ -33,11 +33,14 @@ RUN apt-get install -y \
     || apt-get install -y gcc g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Install libsystemd development files and other build dependencies
+# Install libsystemd development files, dbus, and other build dependencies
 RUN apt-get update && apt-get install -y \
     libsystemd-dev \
     libgtest-dev \
     libgmock-dev \
+    dbus-broker \
+    dbus \
+    systemd \
     && rm -rf /var/lib/apt/lists/*
 
 # Build and install Boost 1.89.0 from source with required libraries
@@ -94,4 +97,11 @@ RUN echo "=== Installed Versions ===" && \
     echo "Python:" && python3 --version && \
     pip3 list | grep -E "(inflection|mako|pyyaml)" || true
 
+# Copy entrypoint script for dbus initialization
+COPY artifacts/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 WORKDIR /workspace
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["bash"]
