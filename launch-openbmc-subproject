@@ -2,7 +2,9 @@
 set -e
 
 # Script to build and run the openbmc-subproject-docker container
-# Uses podman with host networking and mounts current directory as /workspace
+# Uses podman with host networking and mounts the parent directory of the
+# git repository root as /workspace, then sets working dir to the repo
+# subdirectory matching the current directory
 
 # Get the directory where this script is located (for Dockerfile)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,6 +19,10 @@ usage() {
     echo "  build       - Build the Docker image"
     echo "  run         - Run container with specified command"
     echo "  both        - Build and then run (default if no command specified)"
+    echo ""
+    echo "This script mounts the parent directory of the git repository root"
+    echo "into /workspace in the container, and sets the working directory to"
+    echo "the corresponding subdirectory based on your current location."
     echo ""
     echo "Examples:"
     echo "  $0 build"
@@ -38,21 +44,46 @@ build_image() {
 # Function to run the container
 run_container() {
     local cmd="$@"
-    
+
     # If no command specified, use interactive bash
     if [ -z "$cmd" ]; then
         cmd="bash"
     fi
-    
+
+    # Find the git repository root
+    local current_dir="$(pwd)"
+    local repo_root="$(git rev-parse --show-toplevel 2>/dev/null)"
+
+    if [ -z "$repo_root" ]; then
+        echo "Error: Not in a git repository"
+        exit 1
+    fi
+
+    # Get the parent directory of the repo root
+    local repo_parent="$(dirname "$repo_root")"
+    local repo_name="$(basename "$repo_root")"
+
+    # Calculate the relative path from repo root to current directory
+    local rel_path="${current_dir#$repo_root}"
+    rel_path="${rel_path#/}"  # Remove leading slash if present
+
+    # Construct the workspace path: /workspace/<repo_name>/<rel_path>
+    local workspace_dir="/workspace/$repo_name"
+    if [ -n "$rel_path" ]; then
+        workspace_dir="$workspace_dir/$rel_path"
+    fi
+
     echo "=== Running container with host networking ==="
-    echo "Mount: $(pwd) -> /workspace"
+    echo "Repository root: $repo_root"
+    echo "Mount: $repo_parent -> /workspace"
+    echo "Working dir: $workspace_dir"
     echo "Command: $cmd"
     echo ""
-    
+
     podman run --rm -it \
         --network host \
-        -v "$(pwd):/workspace:Z" \
-        -w /workspace \
+        -v "$repo_parent:/workspace:Z" \
+        -w "$workspace_dir" \
         "$IMAGE_NAME" \
         $cmd
 }
