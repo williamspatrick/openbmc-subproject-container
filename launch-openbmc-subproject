@@ -2,8 +2,8 @@
 set -e
 
 # Script to build and run the openbmc-subproject-docker container
-# Uses podman with host networking and mounts the parent directory of the
-# git repository root as /workspace, then sets working dir to the repo
+# Uses podman or docker with host networking and mounts the parent directory
+# of the git repository root as /workspace, then sets working dir to the repo
 # subdirectory matching the current directory
 
 # Get the directory where this script is located (for Dockerfile)
@@ -11,18 +11,50 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 IMAGE_NAME="openbmc-subproject-docker"
 
+# Function to detect container runtime (podman or docker)
+detect_runtime() {
+    # Check if CONTAINER_RUNTIME env var is set
+    if [ -n "$CONTAINER_RUNTIME" ]; then
+        if command -v "$CONTAINER_RUNTIME" >/dev/null 2>&1; then
+            echo "$CONTAINER_RUNTIME"
+            return 0
+        else
+            echo "Error: CONTAINER_RUNTIME=$CONTAINER_RUNTIME not found in PATH" >&2
+            exit 1
+        fi
+    fi
+
+    # Auto-detect: prefer podman, fallback to docker
+    if command -v podman >/dev/null 2>&1; then
+        echo "podman"
+    elif command -v docker >/dev/null 2>&1; then
+        echo "docker"
+    else
+        echo "Error: Neither podman nor docker found in PATH" >&2
+        exit 1
+    fi
+}
+
+RUNTIME="$(detect_runtime)"
+
 # Function to display usage
 usage() {
     echo "Usage: $0 [build|run|both] [command...]"
     echo ""
     echo "Commands:"
-    echo "  build       - Build the Docker image"
+    echo "  build       - Build the container image"
     echo "  run         - Run container with specified command"
     echo "  both        - Build and then run (default if no command specified)"
+    echo ""
+    echo "Environment Variables:"
+    echo "  CONTAINER_RUNTIME - Override auto-detection (podman or docker)"
     echo ""
     echo "This script mounts the parent directory of the git repository root"
     echo "into /workspace in the container, and sets the working directory to"
     echo "the corresponding subdirectory based on your current location."
+    echo ""
+    echo "Auto-detects container runtime (prefers podman, falls back to docker)."
+    echo "Set CONTAINER_RUNTIME env var to override."
     echo ""
     echo "Examples:"
     echo "  $0 build"
@@ -30,14 +62,15 @@ usage() {
     echo "  $0 run meson compile"
     echo "  $0 both meson test"
     echo "  $0  # same as 'both' with interactive bash"
+    echo "  CONTAINER_RUNTIME=docker $0 build"
     exit 1
 }
 
 # Function to build the image
 build_image() {
-    echo "=== Building Docker image: $IMAGE_NAME ==="
+    echo "=== Building container image: $IMAGE_NAME (using $RUNTIME) ==="
     echo "Dockerfile location: $SCRIPT_DIR"
-    podman build --network host -t "$IMAGE_NAME" "$SCRIPT_DIR"
+    $RUNTIME build --network host -t "$IMAGE_NAME" "$SCRIPT_DIR"
     echo "=== Build complete ==="
 }
 
@@ -73,14 +106,14 @@ run_container() {
         workspace_dir="$workspace_dir/$rel_path"
     fi
 
-    echo "=== Running container with host networking ==="
+    echo "=== Running container with host networking (using $RUNTIME) ==="
     echo "Repository root: $repo_root"
     echo "Mount: $repo_parent -> /workspace"
     echo "Working dir: $workspace_dir"
     echo "Command: $cmd"
     echo ""
 
-    podman run --rm -it \
+    $RUNTIME run --rm -it \
         --network host \
         -v "$repo_parent:/workspace:Z" \
         -w "$workspace_dir" \
