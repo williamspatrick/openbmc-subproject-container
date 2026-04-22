@@ -1,4 +1,4 @@
-# OpenBMC Subproject Docker
+# OpenBMC Subproject Container
 
 A Docker container development environment for building and testing OpenBMC
 subprojects.
@@ -23,16 +23,16 @@ From within your OpenBMC subproject git repository:
 
 ```bash
 # Build the image and run an interactive shell
-/path/to/openbmc-subproject-docker/launch-openbmc-subproject
+/path/to/openbmc-subproject-container/launch
 
 # Or specify a command to run
-/path/to/openbmc-subproject-docker/launch-openbmc-subproject meson compile
-/path/to/openbmc-subproject-docker/launch-openbmc-subproject meson test
+/path/to/openbmc-subproject-container/launch meson compile
+/path/to/openbmc-subproject-container/launch meson test
 ```
 
 ### Commands
 
-The `launch-openbmc-subproject` script supports the following commands:
+The `launch` script supports the following commands:
 
 - `build` - Build the Docker image only
 - `run` - Run the container with a specified command
@@ -42,16 +42,16 @@ The `launch-openbmc-subproject` script supports the following commands:
 
 ```bash
 # Build the image
-./launch-openbmc-subproject build
+./launch build
 
 # Run interactive bash in container
-./launch-openbmc-subproject run bash
+./launch run bash
 
 # Build and compile your project
-./launch-openbmc-subproject both meson compile
+./launch both meson compile
 
 # Build and run tests
-./launch-openbmc-subproject both meson test
+./launch both meson test
 ```
 
 ## Building Subprojects

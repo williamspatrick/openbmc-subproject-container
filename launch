@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Script to build and run the openbmc-subproject-docker container
+# Script to build and run the openbmc-subproject-container container
 # Uses podman or docker with host networking and mounts the parent directory
 # of the git repository root as /workspace, then sets working dir to the repo
 # subdirectory matching the current directory
@@ -9,7 +9,7 @@ set -e
 # Get the directory where this script is located (for Dockerfile)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-IMAGE_NAME="openbmc-subproject-docker"
+IMAGE_NAME="openbmc-subproject-container"
 
 # Function to detect container runtime (podman or docker)
 detect_runtime() {
