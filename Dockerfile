@@ -15,8 +15,10 @@ RUN apt-get update && apt-get install -y \
     cmake \
     git \
     ninja-build \
+    systemd-dev \
     libsystemd-dev \
     libnl-3-dev \
+    libnl-genl-3-dev \
     libgtest-dev \
     libgmock-dev \
     dbus-broker \
