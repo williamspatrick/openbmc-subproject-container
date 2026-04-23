@@ -1,6 +1,6 @@
 FROM ubuntu:plucky
 
-# Update and install base dependencies
+# Install all system-level packages (base tools + build dependencies + libraries) in one shot
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
@@ -14,27 +14,7 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     cmake \
     git \
-    && rm -rf /var/lib/apt/lists/*
-
-# Add LLVM repository for clang-21
-# Try plucky first, fall back to oracular/noble if needed
-RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg && \
-    (echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/plucky/ llvm-toolchain-plucky-21 main" > /etc/apt/sources.list.d/llvm.list || \
-     echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/oracular/ llvm-toolchain-oracular-21 main" > /etc/apt/sources.list.d/llvm.list || \
-     echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" > /etc/apt/sources.list.d/llvm.list)
-
-# Update package lists with new repositories
-RUN apt-get update || true
-
-# Install GCC 15 and G++ 15 (or available version)
-RUN apt-get install -y \
-    gcc-15 \
-    g++-15 \
-    || apt-get install -y gcc g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install libsystemd development files, dbus, and other build dependencies
-RUN apt-get update && apt-get install -y \
+    ninja-build \
     libsystemd-dev \
     libnl-3-dev \
     libgtest-dev \
@@ -42,6 +22,11 @@ RUN apt-get update && apt-get install -y \
     dbus-broker \
     dbus \
     systemd \
+    gcc-15 \
+    g++-15 \
+    || apt-get install -y \
+    gcc \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
 # Build and install Boost 1.89.0 from source with required libraries
@@ -60,8 +45,15 @@ RUN cd /tmp && \
 RUN (update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 150 && \
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 150) || true
 
+# Add LLVM repository for clang-21
+# Try plucky first, fall back to oracular/noble if needed
+RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg && \
+    (echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/plucky/ llvm-toolchain-plucky-21 main" > /etc/apt/sources.list.d/llvm.list || \
+     echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/oracular/ llvm-toolchain-oracular-21 main" > /etc/apt/sources.list.d/llvm.list || \
+     echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" > /etc/apt/sources.list.d/llvm.list)
+
 # Install Clang 21 and related tools (try with version suffix, fall back to unversioned)
-RUN apt-get update && apt-get install -y \
+RUN apt-get update || true && apt-get install -y \
     clang-21 \
     clang-format-21 \
     clang-tidy-21 \
@@ -81,22 +73,16 @@ RUN pip3 install --break-system-packages \
     inflection \
     mako \
     pyyaml \
-    jsonschema
-
-# Install meson (will be at least 1.10.1 in Ubuntu plucky) and ninja
-RUN apt-get update && apt-get install -y ninja-build && rm -rf /var/lib/apt/lists/*
-RUN pip3 install --break-system-packages meson
+    jsonschema \
+    meson
 
 # Verify installations
 RUN echo "=== Installed Versions ===" && \
     echo "GCC:" && (gcc --version | head -1 || echo "GCC not found") && \
-    echo "G++:" && (g++ --version | head -1 || echo "G++ not found") && \
     echo "Clang:" && (clang --version | head -1 || echo "Clang not found") && \
-    echo "Clang-format:" && (clang-format --version || echo "not found") && \
-    echo "Clang-tidy:" && (clang-tidy --version || echo "not found") && \
     echo "Meson:" && meson --version && \
     echo "Python:" && python3 --version && \
-    pip3 list | grep -E "(inflection|mako|pyyaml)" || true
+    pip3 list || true
 
 # Copy entrypoint script for dbus initialization
 COPY artifacts/entrypoint.sh /usr/local/bin/entrypoint.sh
