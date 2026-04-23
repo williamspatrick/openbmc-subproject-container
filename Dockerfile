@@ -36,6 +36,7 @@ RUN apt-get install -y \
 # Install libsystemd development files, dbus, and other build dependencies
 RUN apt-get update && apt-get install -y \
     libsystemd-dev \
+    libnl-3-dev \
     libgtest-dev \
     libgmock-dev \
     dbus-broker \
