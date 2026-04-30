@@ -1,5 +1,8 @@
 FROM ubuntu:plucky
 
+# Rootless podman cannot drop to the _apt user for sandboxing; force root.
+RUN echo 'APT::Sandbox::User "root";' > /etc/apt/apt.conf.d/99no-sandbox
+
 # Install all system-level packages (base tools + build dependencies + libraries) in one shot
 RUN apt-get update && apt-get install -y \
     curl \

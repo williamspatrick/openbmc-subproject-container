@@ -70,7 +70,15 @@ usage() {
 build_image() {
     echo "=== Building container image: $IMAGE_NAME (using $RUNTIME) ==="
     echo "Dockerfile location: $SCRIPT_DIR"
-    $RUNTIME build --network host -t "$IMAGE_NAME" "$SCRIPT_DIR"
+
+    local build_args=()
+    for var in http_proxy https_proxy no_proxy HTTP_PROXY HTTPS_PROXY NO_PROXY; do
+        if [ -n "${!var}" ]; then
+            build_args+=(--build-arg "$var=${!var}")
+        fi
+    done
+
+    $RUNTIME build --network host "${build_args[@]}" -t "$IMAGE_NAME" "$SCRIPT_DIR"
     echo "=== Build complete ==="
 }
 
